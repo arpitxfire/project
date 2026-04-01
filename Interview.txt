@@ -1,0 +1,57 @@
+Q1. You’ve worked in both India and US semiconductor industries. What are they good at?
+Where is india lacking at the most and what should they do exactly to gain advantage?
+
+Q2. In a time horizon of say 20-30 years, can india capture a 20% stake in the global semiconductor value chain? Is it possible?
+If not possible -- why?
+If possible - how?
+
+Q3. You will be starting a semiconductor based startup tomorrow.
+a. In india
+B. In US
+ Describe about your goal and which sub sector you will target among semiconductors.
+
+Q4. How can india make a mark ; what is the best path that we have considering the industry is too fast paced.
+
+Q5. Do you believe India should seriously pursue fabrication, or is that strategically inefficient given global realities?
+
+Q6. If you were designing India’s semiconductor strategy from scratch,
+What would you prioritise and why?
+
+Q7. Your thoughts on what Tata and Micron are currently doing in india regarding new plants?
+
+Q8. Are we (India) skilled enough?
+
+Q9. What kind of semiconductor startups actually have a realistic chance of scaling globally from India?
+
+Q10. we are good in design, but we need to take a path so that we excel in semiconductor industry. Should we try to do all the processes (designing to fabrication to testing) or focus on one first?
+
+1. US dominates in EDA tools, core IP and high end logic designs/processor architectures. India is mainly concentrated on Design verification and physical deisgn with few complete end-to-end designs. However, the IP and profits flow back to US (company headquarters). To gain advantage, india should either get into IP licensing or the complete final end products.
+
+2. 20% stake in the entire value chain might be difficult unless some large-scale global events happen. Fabrication requires decades of knowledge (i don't say it is lacking in India but the practical aspects of it are, even they are lacking in US as the state-of-art fabrication is highly restricted to Taiwan and Korea) and complete supply chains. However, I think it would be entirely feasible to capture 20% stake in high-growth segments (like power electronics or semiconductor assembly and test).
+
+3. In India, I would target fabless power semiconductors (GaN/SiC) for electric vehicles. India has massive domestic EV market.  In US, I would target AI accelerators for edge computing.
+
+4. India should not try to catch up on advanced (3nm) logic nodes. It requires too much captial and too easy to fail. Instead, we should focus on legacy nodes (28nm and so on) that are workhorses for automotive and IOT, which are in high demand and going to increase further in future. Or in open source architectures, to reduce reliance on ARM/Intel licences.
+
+5. It is best to have complete end-to-end development in india and fabrication is a cruical step there. But as I was saying in 4, trying directly for advanced logic nodes might be a lot difficult. It is important to get the legacy nodes working and become dominant in that category first.
+
+6. I would prioritize Infrastructure and Chemical Supply Chains over the actual Fab buildings. A Fab is useless without a "just-in-time" supply of ultra-pure water, stable electricity, and specialty gases. 
+
+7. Micron : This is a brilliant first step. It builds the labor force and logistics habits required for semiconductors without the extreme risk of a full wafer Fab.
+Tata: It is high-risk, but necessary for attracting the thousands of smaller suppliers that follow a big Fab.
+
+8. Yes and No. India has world-class Design Engineers. However, it has a massive shortage of Process Engineers and Technicians who know how to run a cleanroom. We are "Software-ready" but not yet "Hardware-hardened."
+
+9. Analog/Mixed-Signal Design: Hard to automate, requires artistic engineering, and has high margins.
+
+Chiplet Interconnects: As chips become modular, the tech that connects different dies (Chiplets) will be a massive market.
+
+10. Trying to do everything at once, might be too spread out. I think it is best to concentrate on the process step-by-step. Start with what we are good at and own it completely such as the design. and then as we are getting into with micron move into packaging and then to speacility fabircation (such as legacy nodes) so the we can get the whole ecosystem in place. Once ecosystem is setup and becomes mature, we can concetrate on advanced nodes, as we have everything set up.
+
+👏
+👍
+😊
+
+
+
+Hi Arpit, Please find my responses above. These are just my thoughts. Let me know if you have any questions.

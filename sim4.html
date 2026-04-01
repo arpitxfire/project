@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Global ChipSim — Semiconductor Supply Chain</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/three@0.148.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#060a14;font-family:'Space Grotesk',sans-serif;color:#e2e8f0}
+#app{display:flex;width:100vw;height:100vh;position:relative}
+#viz{flex:0 0 62%;position:relative;overflow:hidden;background:radial-gradient(ellipse 80% 60% at 40% 55%,#0b1628 0%,#060a14 100%)}
+#viz canvas{display:block;width:100%!important;height:100%!important}
+#hdr{position:absolute;top:0;left:0;right:0;padding:20px 24px;display:flex;align-items:center;gap:12px;z-index:20;pointer-events:none;background:linear-gradient(180deg,rgba(6,10,20,.9) 0%,transparent 100%)}
+.hdr-logo{width:28px;height:28px;border:1.5px solid #00d4ff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.hdr-wordmark{font-size:13px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#00d4ff}
+.hdr-sub{font-size:11px;font-weight:400;color:rgba(255,255,255,.3);margin-left:4px;letter-spacing:.06em}
+#stage-hud{position:absolute;top:72px;left:24px;z-index:20;pointer-events:none}
+.hud-step{font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(0,212,255,.5);letter-spacing:.12em;margin-bottom:4px}
+.hud-name{font-size:18px;font-weight:700;color:#f1f5f9;line-height:1.2;max-width:280px}
+.hud-sub{font-size:11px;color:rgba(255,255,255,.35);margin-top:4px;font-weight:400}
+#controls{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;z-index:30}
+.ctrl{background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.25);color:#00d4ff;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;padding:11px 26px;border-radius:40px;cursor:pointer;letter-spacing:.04em;transition:all .2s;user-select:none;backdrop-filter:blur(8px)}
+.ctrl:hover:not(:disabled){background:rgba(0,212,255,.14);border-color:rgba(0,212,255,.55);box-shadow:0 0 20px rgba(0,212,255,.2);transform:translateY(-1px)}
+.ctrl:active:not(:disabled){transform:scale(.96)}
+.ctrl:disabled{opacity:.2;cursor:not-allowed}
+#step-ind{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.3);min-width:50px;text-align:center;letter-spacing:.06em}
+#progress-dots{position:absolute;bottom:82px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:20}
+.dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);transition:all .4s}
+.dot.active{background:#00d4ff;border-color:#00d4ff;box-shadow:0 0 8px #00d4ff}
+.dot.done{background:rgba(0,212,255,.35);border-color:rgba(0,212,255,.4)}
+#panel{flex:0 0 38%;display:flex;flex-direction:column;background:rgba(6,10,20,.82);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);border-left:1px solid rgba(0,212,255,.1);overflow:hidden;position:relative}
+#panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,.4),transparent)}
+#pbar-wrap{padding:24px 28px 0;flex-shrink:0}
+.pbar-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pbar-label{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.28)}
+.pbar-pct{font-family:'JetBrains Mono',monospace;font-size:10px;color:#00d4ff}
+#pbar-track{height:2px;background:rgba(255,255,255,.07);border-radius:1px;overflow:hidden}
+#pbar-fill{height:100%;width:0%;background:linear-gradient(90deg,#00d4ff 0%,#7c3aed 100%);border-radius:1px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+.pdiv{margin:18px 28px;height:1px;background:rgba(255,255,255,.05)}
+#panel-scroll{flex:1;overflow-y:auto;padding:4px 28px 80px}
+#panel-scroll::-webkit-scrollbar{width:3px}
+#panel-scroll::-webkit-scrollbar-track{background:transparent}
+#panel-scroll::-webkit-scrollbar-thumb{background:rgba(0,212,255,.15);border-radius:2px}
+#panel-content{opacity:1}
+.p-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px 4px 8px;border-radius:4px;margin-bottom:20px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.p-badge-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.p-title{font-size:22px;font-weight:700;line-height:1.25;color:#f8fafc;margin-bottom:10px}
+.p-desc{font-size:13px;line-height:1.75;color:rgba(255,255,255,.52);margin-bottom:24px;font-weight:400}
+.kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
+.kpi-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:12px 14px}
+.kpi-val{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:500;color:#f1f5f9;margin-bottom:2px}
+.kpi-key{font-size:10px;color:rgba(255,255,255,.3);font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+.section-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:14px}
+.player-card{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:8px;margin-bottom:8px;transition:border-color .2s}
+.player-card:hover{border-color:rgba(0,212,255,.18)}
+.p-flag{font-size:24px;line-height:1;flex-shrink:0;margin-top:1px}
+.p-country{font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:3px}
+.p-companies{font-size:11px;color:rgba(255,255,255,.38);line-height:1.6}
+.p-share{font-family:'JetBrains Mono',monospace;font-size:10px;color:#fbbf24;margin-top:4px}
+.insight{margin-top:20px;padding:14px 16px;background:rgba(0,212,255,.04);border-left:2px solid #00d4ff;border-radius:0 8px 8px 0}
+.insight-head{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#00d4ff;margin-bottom:6px}
+.insight-body{font-size:12px;line-height:1.7;color:rgba(255,255,255,.55)}
+.risk-wrap{margin-top:20px}
+.risk-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:10px}
+.risk-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.risk-country{font-size:11px;color:rgba(255,255,255,.5);width:70px;flex-shrink:0;font-size:10px}
+.risk-track{flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.risk-fill{height:100%;border-radius:2px}
+.risk-pct{font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,.35);width:32px;text-align:right;flex-shrink:0}
+.complete-badge{margin-top:20px;padding:16px 18px;background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(16,185,129,.05));border:1px solid rgba(16,185,129,.3);border-radius:10px;text-align:center}
+.complete-icon{font-size:28px;margin-bottom:8px}
+.complete-title{font-size:14px;font-weight:700;color:#10b981;margin-bottom:4px}
+.complete-sub{font-size:11px;color:rgba(255,255,255,.4);line-height:1.5}
+/* chip brands panel row */
+.chip-brands{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.chip-brand-tag{padding:5px 11px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:.04em;border:1px solid;cursor:default;transition:all .18s}
+.chip-brand-tag:hover{transform:translateY(-1px)}
+@media(max-width:768px){
+  #app{flex-direction:column}
+  #viz{flex:0 0 100%;width:100%;height:100vh}
+  #panel{position:fixed;bottom:0;left:0;right:0;flex:none;width:100%;max-height:75vh;border-left:none;border-top:1px solid rgba(0,212,255,.15);border-radius:18px 18px 0 0;transform:translateY(calc(100% - 70px));transition:transform .4s cubic-bezier(.4,0,.2,1);z-index:100}
+  #panel.open{transform:translateY(0)}
+  #mob-handle{display:block;width:36px;height:4px;background:rgba(255,255,255,.18);border-radius:2px;margin:12px auto 0;cursor:pointer}
+  #controls{bottom:88px}
+}
+@media(min-width:769px){#mob-handle{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="viz">
+    <div id="hdr">
+      <div class="hdr-logo">⬡</div>
+      <div><span class="hdr-wordmark">Global ChipSim</span><span class="hdr-sub">Semiconductor Value Chain</span></div>
+    </div>
+    <div id="stage-hud">
+      <div class="hud-step" id="hud-step">STAGE 0 / 4</div>
+      <div class="hud-name" id="hud-name">Silicon Substrate</div>
+      <div class="hud-sub"  id="hud-sub">Ultra-pure monocrystalline silicon · 300mm</div>
+    </div>
+    <canvas id="c"></canvas>
+    <div id="progress-dots"></div>
+    <div id="controls">
+      <button class="ctrl" id="btn-back" disabled>← Back</button>
+      <span id="step-ind">0 / 4</span>
+      <button class="ctrl" id="btn-fwd">Forward →</button>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div id="mob-handle"></div>
+    <div id="pbar-wrap">
+      <div class="pbar-meta">
+        <span class="pbar-label">Supply Chain Progress</span>
+        <span class="pbar-pct" id="pbar-pct">0%</span>
+      </div>
+      <div id="pbar-track"><div id="pbar-fill"></div></div>
+    </div>
+    <div class="pdiv"></div>
+    <div id="panel-scroll"><div id="panel-content"></div></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════
+// GLOBAL CHIP SIM — Realistic semiconductor supply chain sim
+// Three.js r148 · GSAP 3.12
+// ═══════════════════════════════════════════════════════════════
+
+// ── exact chip footprint dimensions – shared everywhere ──────
+const CW = 3.2;   // chip width  (X)
+const CD = 3.2;   // chip depth  (Z)
+const CH = 0.14;  // substrate height
+// All layers stack from Y=0 upward
+
+// ── RENDERER ─────────────────────────────────────────────────
+const canvas   = document.getElementById('c');
+const vizEl    = document.getElementById('viz');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled  = true;
+renderer.shadowMap.type     = THREE.PCFSoftShadowMap;
+renderer.toneMapping        = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure= 1.1;
+renderer.outputEncoding     = THREE.sRGBEncoding;
+
+// ── SCENE ────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060a14);
+scene.fog = new THREE.FogExp2(0x060a14, 0.032);
+
+// ── CAMERA ──────────────────────────────────────────────────
+const D = 5.0;
+const getAspect = () => vizEl.clientWidth / vizEl.clientHeight;
+const camera = new THREE.OrthographicCamera(-D*getAspect(), D*getAspect(), D, -D, 0.01, 200);
+camera.position.set(11, 9, 11);
+camera.lookAt(0, 0.8, 0);
+
+// ── LIGHTS ───────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x1a2a4a, 0.7));
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(7, 14, 6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left = sun.shadow.camera.bottom = -7;
+sun.shadow.camera.right = sun.shadow.camera.top  =  7;
+sun.shadow.camera.far   = 60;
+sun.shadow.bias = -0.0008;
+scene.add(sun);
+
+const rim  = new THREE.DirectionalLight(0x0055ff, 0.55);
+rim.position.set(-6, 4, -8);
+scene.add(rim);
+
+const fill = new THREE.PointLight(0x00d4ff, 0.4, 14);
+fill.position.set(-3, 4, 3);
+scene.add(fill);
+
+scene.add(new THREE.HemisphereLight(0x0a1a3a, 0x040810, 0.45));
+
+// ── GROUND ──────────────────────────────────────────────────
+const groundMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(40, 40),
+  new THREE.MeshStandardMaterial({ color:0x060a14, roughness:1 })
+);
+groundMesh.rotation.x = -Math.PI/2;
+groundMesh.position.y = -0.35;
+groundMesh.receiveShadow = true;
+scene.add(groundMesh);
+
+// ── CHIP GROUP (rotates) ─────────────────────────────────────
+const chipGroup = new THREE.Group();
+scene.add(chipGroup);
+
+// ── LAYER STACK ─────────────────────────────────────────────
+const layerStack = [];
+function disposeEntry(e){
+  e.geos.forEach(g=>g.dispose());
+  e.mats.forEach(m=>m.dispose());
+  chipGroup.remove(e.group);
+}
+
+// ── RESIZE ──────────────────────────────────────────────────
+function onResize(){
+  const a = getAspect();
+  camera.left=-D*a; camera.right=D*a; camera.top=D; camera.bottom=-D;
+  camera.updateProjectionMatrix();
+  renderer.setSize(vizEl.clientWidth, vizEl.clientHeight);
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+// ════════════════════════════════════════════════════════════
+// TEXTURE HELPERS
+// ════════════════════════════════════════════════════════════
+
+// Circuit trace texture (canvas-drawn, mapped to substrate top)
+function makeCircuitTex(size=512){
+  const cv=document.createElement('canvas'); cv.width=cv.height=size;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#08111f'; ctx.fillRect(0,0,size,size);
+  // faint grid
+  ctx.strokeStyle='rgba(0,180,220,0.07)'; ctx.lineWidth=0.5;
+  for(let i=0;i<=16;i++){
+    const p=i*(size/16);
+    ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,size);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(size,p);ctx.stroke();
+  }
+  // traces
+  const T=[
+    [[0,size*.25],[size*.65,size*.25]],[[size*.35,size*.5],[size,size*.5]],
+    [[0,size*.75],[size*.85,size*.75]],[[size*.15,size*.12],[size*.75,size*.12]],
+    [[size*.1,size*.88],[size*.9,size*.88]],
+    [[size*.25,0],[size*.25,size*.65]],[[size*.5,size*.3],[size*.5,size]],
+    [[size*.75,0],[size*.75,size*.82]],[[size*.1,size*.18],[size*.1,size*.88]],
+    [[size*.9,size*.1],[size*.9,size*.72]],
+    [[size*.25,size*.25],[size*.5,size*.5]],[[size*.5,size*.25],[size*.75,size*.5]],
+    [[size*.25,size*.5],[size*.5,size*.75]],[[size*.5,size*.5],[size*.75,size*.75]],
+  ];
+  T.forEach(([a,b])=>{
+    const g=ctx.createLinearGradient(a[0],a[1],b[0],b[1]);
+    g.addColorStop(0,'rgba(0,212,255,0.75)');g.addColorStop(1,'rgba(0,212,255,0.12)');
+    ctx.strokeStyle=g; ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
+  });
+  // pads
+  [[size*.25,size*.25],[size*.5,size*.25],[size*.75,size*.25],
+   [size*.25,size*.5],[size*.5,size*.5],[size*.75,size*.5],
+   [size*.25,size*.75],[size*.5,size*.75],[size*.75,size*.75],
+   [size*.1,size*.5],[size*.9,size*.5],[size*.5,size*.1],[size*.5,size*.9]
+  ].forEach(([x,y])=>{
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle='rgba(0,212,255,0.9)';ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.strokeStyle='rgba(0,212,255,0.2)';ctx.lineWidth=1;ctx.stroke();
+  });
+  return new THREE.CanvasTexture(cv);
+}
+
+// Real chip brand texture painted on package top
+// brand: 'qualcomm' | 'apple' | 'nvidia' | 'tsmc'
+function makeChipMarkingTex(brand='qualcomm', size=512){
+  const cv=document.createElement('canvas'); cv.width=size; cv.height=size;
+  const ctx=cv.getContext('2d');
+
+  // dark matte epoxy surface
+  ctx.fillStyle='#0e1a0e'; ctx.fillRect(0,0,size,size);
+
+  // subtle surface texture — mold flow lines
+  ctx.strokeStyle='rgba(255,255,255,0.025)'; ctx.lineWidth=1;
+  for(let i=0;i<size;i+=12){
+    ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(size,i+8);ctx.stroke();
+  }
+
+  // Corner chamfer marks
+  const ch=28;
+  ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1.5;
+  [[0,0,ch,0,0,ch],[size,0,size-ch,0,size,ch],
+   [0,size,ch,size,0,size-ch],[size,size,size-ch,size,size,size-ch]
+  ].forEach(([x1,y1,x2,y2,x3,y3])=>{
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.moveTo(x1,y1);ctx.lineTo(x3,y3);ctx.stroke();
+  });
+
+  // Pin-1 indicator dot
+  ctx.beginPath();ctx.arc(38,38,6,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fill();
+
+  const cx=size/2, cy=size/2;
+
+  if(brand==='qualcomm'){
+    // SNAPDRAGON wordmark
+    ctx.font=`bold ${size*0.1}px 'Arial',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(255,50,10,0.9)';
+    ctx.fillText('snapdragon',cx,cy-size*0.08);
+    // model number
+    ctx.font=`bold ${size*0.075}px 'Arial Narrow','Arial',sans-serif`;
+    ctx.fillStyle='rgba(255,255,255,0.88)';
+    ctx.fillText('8 Gen 4',cx,cy+size*0.045);
+    // Qualcomm small
+    ctx.font=`${size*0.042}px 'Arial',sans-serif`;
+    ctx.fillStyle='rgba(255,255,255,0.4)';
+    ctx.fillText('QUALCOMM TECHNOLOGIES, INC.',cx,cy+size*0.16);
+    // red accent line
+    ctx.fillStyle='rgba(255,50,10,0.7)';
+    ctx.fillRect(cx-size*0.26,cy+size*0.01,size*0.52,2);
+
+  } else if(brand==='apple'){
+    // Apple logo (drawn with bezier paths)
+    const s=size*0.18, ax=cx, ay=cy-size*0.08;
+    ctx.save();ctx.translate(ax,ay);ctx.scale(s/80,s/80);
+    ctx.fillStyle='rgba(255,255,255,0.9)';
+    // Simplified apple silhouette
+    ctx.beginPath();
+    ctx.moveTo(40,12);ctx.bezierCurveTo(46,5,54,8,54,8);ctx.bezierCurveTo(54,8,48,15,40,12);ctx.closePath();ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(40,16);ctx.bezierCurveTo(28,16,18,26,18,40);ctx.bezierCurveTo(18,55,28,72,40,72);
+    ctx.bezierCurveTo(46,72,50,68,56,68);ctx.bezierCurveTo(62,68,66,72,72,72);
+    ctx.bezierCurveTo(84,72,94,55,94,40);ctx.bezierCurveTo(94,26,84,16,72,16);
+    ctx.bezierCurveTo(66,16,62,20,56,20);ctx.bezierCurveTo(50,20,46,16,40,16);ctx.closePath();ctx.fill();
+    ctx.restore();
+    // A-series label
+    ctx.font=`bold ${size*0.09}px 'Arial',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(255,255,255,0.88)';
+    ctx.fillText('A18 Pro',cx,cy+size*0.09);
+    ctx.font=`${size*0.038}px 'Arial',sans-serif`;
+    ctx.fillStyle='rgba(255,255,255,0.35)';
+    ctx.fillText('Apple Inc.  •  Designed in California',cx,cy+size*0.195);
+
+  } else if(brand==='nvidia'){
+    // NVIDIA eye logo (simplified)
+    ctx.save();ctx.translate(cx,cy-size*0.1);
+    ctx.fillStyle='rgba(118,185,0,1)';
+    // Shield shape
+    ctx.beginPath();
+    ctx.moveTo(0,-size*0.1);
+    ctx.bezierCurveTo(size*0.12,-size*0.1,size*0.18,-size*0.04,size*0.18,size*0.04);
+    ctx.bezierCurveTo(size*0.18,size*0.11,size*0.1,size*0.17,0,size*0.2);
+    ctx.bezierCurveTo(-size*0.1,size*0.17,-size*0.18,size*0.11,-size*0.18,size*0.04);
+    ctx.bezierCurveTo(-size*0.18,-size*0.04,-size*0.12,-size*0.1,0,-size*0.1);
+    ctx.closePath();ctx.fill();
+    ctx.restore();
+    // NVIDIA wordmark
+    ctx.font=`bold ${size*0.11}px 'Arial',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(118,185,0,0.95)';
+    ctx.fillText('NVIDIA',cx,cy+size*0.04);
+    ctx.font=`${size*0.055}px 'Arial',sans-serif`;
+    ctx.fillStyle='rgba(255,255,255,0.65)';
+    ctx.fillText('H100 SXM5  80GB',cx,cy+size*0.15);
+    ctx.font=`${size*0.036}px 'Arial',sans-serif`;
+    ctx.fillStyle='rgba(255,255,255,0.3)';
+    ctx.fillText('GH100-96GB-HBM3-900-21001-0000-C00',cx,cy+size*0.23);
+
+  } else if(brand==='tsmc'){
+    ctx.font=`bold ${size*0.14}px 'Arial',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(0,160,220,0.9)';
+    ctx.fillText('TSMC',cx,cy-size*0.06);
+    ctx.font=`${size*0.055}px 'Arial',sans-serif`;
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.fillText('N3E · 3nm FinFET',cx,cy+size*0.06);
+    ctx.font=`${size*0.038}px 'Arial',sans-serif`;
+    ctx.fillStyle='rgba(255,255,255,0.25)';
+    ctx.fillText('Taiwan Semiconductor Mfg Co., Ltd.',cx,cy+size*0.18);
+  }
+
+  // Batch / lot code bottom
+  ctx.font=`${size*0.032}px 'JetBrains Mono','Courier New',monospace`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(255,255,255,0.18)';
+  ctx.fillText('LOT: A24C09  /  MADE IN TAIWAN',cx,size-30);
+
+  return new THREE.CanvasTexture(cv);
+}
+
+// ════════════════════════════════════════════════════════════
+// STAGE 0 — Silicon Substrate
+// ════════════════════════════════════════════════════════════
+function buildSubstrate(){
+  const group=new THREE.Group(), geos=[], mats=[];
+
+  // Main slab — exactly CW × CH × CD
+  const slabGeo=new THREE.BoxGeometry(CW, CH, CD, 4,1,4);
+  const slabMat=new THREE.MeshPhysicalMaterial({
+    color:0x7a8fa8, metalness:0.42, roughness:0.4,
+    clearcoat:0.55, clearcoatRoughness:0.18,
+  });
+  const slab=new THREE.Mesh(slabGeo,slabMat);
+  slab.position.y=CH/2;   // sits on y=0
+  slab.receiveShadow=slab.castShadow=true;
+  group.add(slab); geos.push(slabGeo); mats.push(slabMat);
+
+  // Circuit texture on top face
+  const ovGeo=new THREE.PlaneGeometry(CW-.04, CD-.04);
+  const ovMat=new THREE.MeshBasicMaterial({
+    map:makeCircuitTex(512), transparent:true, opacity:0,
+    blending:THREE.AdditiveBlending, depthWrite:false,
+  });
+  const ov=new THREE.Mesh(ovGeo,ovMat);
+  ov.rotation.x=-Math.PI/2; ov.position.y=CH+0.001;
+  group.add(ov); geos.push(ovGeo); mats.push(ovMat);
+  gsap.to(ovMat,{opacity:0.32,duration:1.2,delay:0.3});
+
+  // Die markings (array of tiny rectangles)
+  const dGeo=new THREE.BoxGeometry(0.035,0.001,0.035);
+  const dMat=new THREE.MeshBasicMaterial({color:0x00aacc,transparent:true,opacity:0.45});
+  for(let xi=-4;xi<=4;xi++) for(let zi=-4;zi<=4;zi++){
+    const d=new THREE.Mesh(dGeo,dMat);
+    d.position.set(xi*0.36, CH+0.001, zi*0.36);
+    group.add(d);
+  }
+  geos.push(dGeo); mats.push(dMat);
+
+  // Wafer notch
+  const nGeo=new THREE.CylinderGeometry(0.07,0.07,CH*1.1,10);
+  const nMat=new THREE.MeshStandardMaterial({color:0x566a7f,metalness:.3,roughness:.7});
+  const notch=new THREE.Mesh(nGeo,nMat);
+  notch.position.set(CW/2-0.02, CH/2, 0);
+  group.add(notch); geos.push(nGeo); mats.push(nMat);
+
+  chipGroup.add(group);
+  return {group,geos,mats};
+}
+
+// ════════════════════════════════════════════════════════════
+// STAGE 1 — EDA / Blueprint
+// ════════════════════════════════════════════════════════════
+function buildBlueprint(){
+  const group=new THREE.Group(), geos=[], mats=[];
+  const Y=CH+0.003;
+
+  // Line traces drawn on with setDrawRange
+  const pts=[];
+  for(let z=-1.45;z<=1.46;z+=0.29) pts.push(-1.55,Y,z, 1.55,Y,z);
+  for(let x=-1.45;x<=1.46;x+=0.29) pts.push(x,Y,-1.55, x,Y,1.55);
+  const diags=[
+    [-1.16,Y,-1.16,-0.58,Y,-0.58],[-0.58,Y,-0.58,0,Y,-0.58],
+    [1.16,Y,-1.16,0.58,Y,-0.58],[0.58,Y,-0.58,0,Y,-0.58],
+    [-1.16,Y,1.16,-0.58,Y,0.58],[-0.58,Y,0.58,0,Y,0.58],
+    [1.16,Y,1.16,0.58,Y,0.58],[0.58,Y,0.58,0,Y,0.58],
+    [0,Y,-0.58,0,Y,0.58],[-0.58,Y,0,0.58,Y,0],
+    [-0.29,Y,-0.29,0.29,Y,0.29],[0.29,Y,-0.29,-0.29,Y,0.29],
+  ];
+  diags.forEach(c=>pts.push(...c));
+
+  const lGeo=new THREE.BufferGeometry();
+  lGeo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+  const totalV=pts.length/3; lGeo.setDrawRange(0,0);
+  const lMat=new THREE.LineBasicMaterial({color:0x00d4ff,transparent:true,opacity:0});
+  group.add(new THREE.LineSegments(lGeo,lMat));
+  geos.push(lGeo); mats.push(lMat);
+
+  // Chip outline
+  const outPts=[
+    new THREE.Vector3(-CW/2,Y+.003,-CD/2),new THREE.Vector3(CW/2,Y+.003,-CD/2),
+    new THREE.Vector3(CW/2,Y+.003,CD/2), new THREE.Vector3(-CW/2,Y+.003,CD/2),
+    new THREE.Vector3(-CW/2,Y+.003,-CD/2),
+  ];
+  const outGeo=new THREE.BufferGeometry().setFromPoints(outPts);
+  const outMat=new THREE.LineBasicMaterial({color:0x00ffcc,transparent:true,opacity:0});
+  group.add(new THREE.Line(outGeo,outMat));
+  geos.push(outGeo); mats.push(outMat);
+
+  // Die boundary
+  const diePts=[
+    new THREE.Vector3(-.68,Y+.004,-.68),new THREE.Vector3(.68,Y+.004,-.68),
+    new THREE.Vector3(.68,Y+.004,.68), new THREE.Vector3(-.68,Y+.004,.68),
+    new THREE.Vector3(-.68,Y+.004,-.68),
+  ];
+  const dGeo=new THREE.BufferGeometry().setFromPoints(diePts);
+  const dMat=new THREE.LineBasicMaterial({color:0xfbbf24,transparent:true,opacity:0});
+  group.add(new THREE.Line(dGeo,dMat));
+  geos.push(dGeo); mats.push(dMat);
+
+  // Via spheres
+  const vGeo=new THREE.SphereGeometry(0.032,8,8);
+  const vMat=new THREE.MeshBasicMaterial({color:0x00d4ff,transparent:true,opacity:0});
+  [[-1.16,-1.16],[0,-1.16],[1.16,-1.16],[-1.16,0],[0,0],[1.16,0],[-1.16,1.16],[0,1.16],[1.16,1.16],
+   [-0.58,-0.58],[0.58,-0.58],[-0.58,0.58],[0.58,0.58]
+  ].forEach(([x,z])=>{
+    const v=new THREE.Mesh(vGeo,vMat);
+    v.position.set(x,Y+0.018,z); v.scale.setScalar(0); group.add(v);
+    gsap.to(v.scale,{x:1,y:1,z:1,duration:0.28,delay:0.9+Math.random()*.35,ease:'back.out(2)'});
+  });
+  geos.push(vGeo); mats.push(vMat);
+
+  chipGroup.add(group);
+
+  const prog={v:0};
+  gsap.to(prog,{v:1,duration:1.3,ease:'power2.inOut',
+    onUpdate:()=>lGeo.setDrawRange(0,Math.floor(prog.v*totalV))});
+  gsap.to(lMat,{opacity:0.82,duration:0.5});
+  gsap.to(outMat,{opacity:0.6,duration:0.5,delay:0.4});
+  gsap.to(dMat,{opacity:0.7,duration:0.4,delay:0.7});
+  gsap.to(vMat,{opacity:0.9,duration:0.3,delay:0.85});
+  gsap.to(lMat,{opacity:0.3,duration:1.6,delay:1.5,repeat:-1,yoyo:true,ease:'sine.inOut'});
+
+  return {group,geos,mats};
+}
+
+// ════════════════════════════════════════════════════════════
+// STAGE 2 — Equipment / Photoresist + EUV
+// ════════════════════════════════════════════════════════════
+function buildEquipment(){
+  const group=new THREE.Group(), geos=[], mats=[];
+  const baseY=CH; // top of substrate
+
+  // Photoresist — exactly matches chip footprint
+  const rGeo=new THREE.BoxGeometry(CW, 0.048, CD);
+  const rMat=new THREE.MeshPhysicalMaterial({
+    color:0x6d28d9, transparent:true, opacity:0,
+    metalness:0, roughness:0.5, transmission:0.28, thickness:0.08,
+  });
+  const resist=new THREE.Mesh(rGeo,rMat);
+  resist.position.set(0, baseY+0.024+6, 0);
+  group.add(resist); geos.push(rGeo); mats.push(rMat);
+  gsap.to(resist.position,{y:baseY+0.024,duration:1.1,ease:'elastic.out(1,0.72)'});
+  gsap.to(rMat,{opacity:0.52,duration:0.55,delay:0.12});
+
+  // Resist edge glow
+  const eGeo=new THREE.BoxGeometry(CW+0.012,0.008,CD+0.012);
+  const eMat=new THREE.MeshBasicMaterial({color:0x8b5cf6,transparent:true,opacity:0});
+  const eg=new THREE.Mesh(eGeo,eMat);
+  eg.position.set(0,baseY+0.05,0); group.add(eg);
+  geos.push(eGeo); mats.push(eMat);
+  gsap.to(eMat,{opacity:0.75,duration:0.35,delay:1.0});
+  gsap.to(eMat,{opacity:0.2,duration:1.1,delay:1.35,repeat:-1,yoyo:true,ease:'sine.inOut'});
+
+  // EUV laser sweeps (3 passes, exactly chip width span)
+  const lGeo=new THREE.BoxGeometry(0.014,0.005,CD+0.06);
+  const laserDefs=[{c:0x00ffee,d:0.38},{c:0x00e5ff,d:0.72},{c:0xffffff,d:1.08}];
+  laserDefs.forEach(({c,d})=>{
+    const lM=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0});
+    const lsr=new THREE.Mesh(lGeo,lM);
+    lsr.position.set(-CW/2-0.06, baseY+0.058, 0);
+    group.add(lsr); mats.push(lM);
+    gsap.to(lM,{opacity:0.92,duration:0.08,delay:d});
+    gsap.to(lsr.position,{x:CW/2+0.06,duration:0.52,delay:d,ease:'power1.inOut'});
+    gsap.to(lM,{opacity:0,duration:0.22,delay:d+0.5});
+  });
+  geos.push(lGeo);
+
+  // Particle spray
+  const pN=100, pPos=new Float32Array(pN*3);
+  for(let i=0;i<pN;i++){
+    pPos[i*3]=(Math.random()-.5)*CW*.9;
+    pPos[i*3+1]=baseY+.02+Math.random()*.35;
+    pPos[i*3+2]=(Math.random()-.5)*CD*.9;
+  }
+  const pGeo=new THREE.BufferGeometry();
+  pGeo.setAttribute('position',new THREE.Float32BufferAttribute(pPos,3));
+  const pMat=new THREE.PointsMaterial({color:0xa78bfa,size:0.03,transparent:true,opacity:0,sizeAttenuation:true});
+  group.add(new THREE.Points(pGeo,pMat));
+  geos.push(pGeo); mats.push(pMat);
+  gsap.to(pMat,{opacity:0.65,duration:0.28,delay:0.48});
+  gsap.to(pMat,{opacity:0,duration:0.75,delay:1.55});
+
+  chipGroup.add(group);
+  return {group,geos,mats};
+}
+
+// ════════════════════════════════════════════════════════════
+// STAGE 3 — Fabrication: FinFETs + Metal layers
+// ════════════════════════════════════════════════════════════
+function buildFabrication(){
+  const group=new THREE.Group(), geos=[], mats=[];
+  const baseY=CH+0.048; // top of resist
+
+  // FinFET gate fingers
+  const fGeo=new THREE.BoxGeometry(0.055,0.26,0.01);
+  const fMat=new THREE.MeshPhysicalMaterial({color:0x4a90d9,metalness:0.7,roughness:0.2,emissive:0x001122,emissiveIntensity:0.3});
+  for(let i=0;i<10;i++){
+    const f=new THREE.Mesh(fGeo,fMat);
+    f.position.set((i-4.5)*0.3, baseY+0.13, 0);
+    f.scale.y=0; group.add(f);
+    gsap.to(f.scale,{y:1,duration:0.38,delay:i*0.055,ease:'back.out(1.5)'});
+  }
+  geos.push(fGeo); mats.push(fMat);
+
+  // Source/drain pillars
+  const pGeo=new THREE.BoxGeometry(0.048,0.1,0.2);
+  const pMat=new THREE.MeshStandardMaterial({color:0xc2530a,metalness:0.75,roughness:0.25,emissive:0x2a0a00,emissiveIntensity:0.35});
+  for(let xi=-4;xi<=4;xi++) for(let zi=-4;zi<=4;zi++){
+    const p=new THREE.Mesh(pGeo,pMat);
+    p.position.set(xi*0.36,baseY+0.05,zi*0.36);
+    p.scale.y=0; group.add(p);
+    gsap.to(p.scale,{y:1,duration:0.3,delay:0.28+(Math.abs(xi)+Math.abs(zi))*0.018,ease:'power3.out'});
+  }
+  geos.push(pGeo); mats.push(pMat);
+
+  // Metal interconnect sheets M1/M2/M3 — exactly CW×CD
+  [{c:0xb87333,y:baseY+0.14,o:0.7,d:0.6},{c:0xd4943a,y:baseY+0.21,o:0.8,d:0.82},{c:0xe8b860,y:baseY+0.28,o:0.88,d:1.05}]
+  .forEach(({c,y,o,d})=>{
+    const mGeo=new THREE.BoxGeometry(CW-0.06,0.022,CD-0.06,6,1,6);
+    const mMat=new THREE.MeshPhysicalMaterial({color:c,metalness:0.9,roughness:0.14,emissive:0x1a0a00,emissiveIntensity:0.18,transparent:true,opacity:0});
+    const m=new THREE.Mesh(mGeo,mMat); m.position.y=y; group.add(m);
+    geos.push(mGeo); mats.push(mMat);
+    gsap.to(mMat,{opacity:o,duration:0.45,delay:d});
+  });
+
+  // Via plugs
+  const vGeo=new THREE.CylinderGeometry(0.016,0.016,0.13,6);
+  const vMat=new THREE.MeshStandardMaterial({color:0xe8c060,metalness:0.95,roughness:0.08});
+  for(let xi=-3;xi<=3;xi++) for(let zi=-3;zi<=3;zi++) if(Math.abs(xi)+Math.abs(zi)<=5){
+    const v=new THREE.Mesh(vGeo,vMat);
+    v.position.set(xi*0.46,baseY+0.205,zi*0.46); group.add(v);
+  }
+  geos.push(vGeo); mats.push(vMat);
+
+  // IMD dielectric glass
+  const iGeo=new THREE.BoxGeometry(CW-0.04,0.032,CD-0.04);
+  const iMat=new THREE.MeshPhysicalMaterial({color:0x7799cc,transparent:true,opacity:0,metalness:0,roughness:0.04,transmission:0.55,thickness:0.4});
+  const imd=new THREE.Mesh(iGeo,iMat); imd.position.y=baseY+0.31; group.add(imd);
+  geos.push(iGeo); mats.push(iMat);
+  gsap.to(iMat,{opacity:0.32,duration:0.55,delay:1.2});
+
+  chipGroup.add(group);
+  return {group,geos,mats};
+}
+
+// ════════════════════════════════════════════════════════════
+// STAGE 4 — Packaging: Epoxy + BGA + Leads + Branding
+//
+// KEY FIX: package footprint = CW × CD exactly (no oversized box)
+// It cleanly wraps the chip stack with flush sides, then
+// the BGA bumps and leads extend naturally below/around.
+// Brand texture is mapped to top face only.
+// ════════════════════════════════════════════════════════════
+function buildPackaging(){
+  const group=new THREE.Group(), geos=[], mats=[];
+
+  // Stack top is approximately CH + 0.048 (resist) + 0.31 (metal) = ~0.50
+  const stackTop = CH + 0.048 + 0.32;   // y where stack ends
+  const pkgH     = 0.42;                 // package body height
+  const pkgY     = stackTop + pkgH/2;   // center Y of package
+  const landY    = stackTop;            // package bottom face y
+
+  // ── Die attach film (adhesive under package) ────────────
+  const dafGeo=new THREE.BoxGeometry(CW, 0.016, CD);
+  const dafMat=new THREE.MeshStandardMaterial({color:0x2a0a00,transparent:true,opacity:0});
+  const daf=new THREE.Mesh(dafGeo,dafMat);
+  daf.position.y=stackTop+0.008; group.add(daf);
+  geos.push(dafGeo); mats.push(dafMat);
+  gsap.to(dafMat,{opacity:1,duration:0.25,delay:0.05});
+
+  // ── Epoxy mold compound — EXACTLY CW × CD footprint ─────
+  // Two-material approach: side shell + branded top cap
+  // Side shell (no top face, so texture cap sits flush on top)
+  const shellGeo=new THREE.BoxGeometry(CW, pkgH, CD);
+  const shellMat=new THREE.MeshPhysicalMaterial({
+    color:0x0e1a0e, metalness:0.04, roughness:0.88,
+    clearcoat:0.25, clearcoatRoughness:0.6,
+    transparent:true, opacity:0,
+  });
+  const shell=new THREE.Mesh(shellGeo,shellMat);
+  shell.castShadow=true; shell.receiveShadow=true;
+  shell.position.y=pkgY+7;  // start above
+  group.add(shell); geos.push(shellGeo); mats.push(shellMat);
+  gsap.to(shell.position,{y:pkgY,duration:1.0,ease:'bounce.out',delay:0.08});
+  gsap.to(shellMat,{opacity:1,duration:0.4,delay:0.12});
+
+  // ── Branded top cap (flat plane with canvas texture) ────
+  // Sits flush on top of shell — same footprint
+  const capGeo=new THREE.PlaneGeometry(CW, CD);
+  // pick one brand to display; you can cycle this
+  const brand = ['qualcomm','apple','nvidia'][Math.floor(Math.random()*3)];
+  const capTex=makeChipMarkingTex(brand, 512);
+  const capMat=new THREE.MeshStandardMaterial({
+    map:capTex, metalness:0.05, roughness:0.82,
+    transparent:true, opacity:0,
+  });
+  const cap=new THREE.Mesh(capGeo,capMat);
+  cap.rotation.x=-Math.PI/2;
+  // positioned in world: top of shell
+  cap.position.set(0, stackTop+pkgH+0.002, 0);
+  group.add(cap); geos.push(capGeo); mats.push(capMat);
+  gsap.to(capMat,{opacity:1,duration:0.5,delay:1.05});
+
+  // ── Pin-1 corner dot ────────────────────────────────────
+  const dotGeo=new THREE.CylinderGeometry(0.04,0.04,0.006,10);
+  const dotMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0});
+  const dot=new THREE.Mesh(dotGeo,dotMat);
+  dot.position.set(-CW/2+0.15, stackTop+pkgH+0.004, -CD/2+0.15);
+  group.add(dot); geos.push(dotGeo); mats.push(dotMat);
+  gsap.to(dotMat,{opacity:0.4,duration:0.3,delay:1.1});
+
+  // ── BGA solder bump array (on bottom of package) ────────
+  const bGeo=new THREE.SphereGeometry(0.044, 10, 10);
+  const bMat=new THREE.MeshPhysicalMaterial({
+    color:0xd4af37, metalness:0.82, roughness:0.2,
+    clearcoat:0.65, clearcoatRoughness:0.12,
+  });
+  const bumps=[];
+  const bStep=0.36, bCols=8, bRows=8;
+  for(let xi=0;xi<bCols;xi++) for(let zi=0;zi<bRows;zi++){
+    const bx=(xi-(bCols-1)/2)*bStep;
+    const bz=(zi-(bRows-1)/2)*bStep;
+    // only place inside footprint with margin
+    if(Math.abs(bx)<CW/2-0.1 && Math.abs(bz)<CD/2-0.1){
+      const b=new THREE.Mesh(bGeo,bMat);
+      b.position.set(bx, landY-0.044, bz);
+      b.scale.setScalar(0); group.add(b); bumps.push(b);
+    }
+  }
+  geos.push(bGeo); mats.push(bMat);
+  bumps.forEach((b,i)=>gsap.to(b.scale,{x:1,y:1,z:1,duration:0.26,delay:1.15+i*0.009,ease:'back.out(2)'}));
+
+  // ── QFN-style perimeter pads (flush with edge, no overhang) ─
+  const padGeo=new THREE.BoxGeometry(0.08, 0.01, 0.16);
+  const padMat=new THREE.MeshStandardMaterial({color:0xd0d5dd,metalness:0.92,roughness:0.1});
+  const padStep=0.28, padN=9;
+  for(let i=0;i<padN;i++){
+    const off=(i-(padN-1)/2)*padStep;
+    // flush with chip edge on all 4 sides
+    [
+      {x: CW/2-0.04, z:off, ry:0},
+      {x:-CW/2+0.04, z:off, ry:0},
+      {x:off, z: CD/2-0.04, ry:Math.PI/2},
+      {x:off, z:-CD/2+0.04, ry:Math.PI/2},
+    ].forEach(({x,z,ry})=>{
+      const pad=new THREE.Mesh(padGeo,padMat);
+      pad.rotation.y=ry;
+      pad.position.set(x, landY-0.005, z);
+      pad.scale.z=0; group.add(pad);
+      gsap.to(pad.scale,{z:1,duration:0.22,delay:1.3+i*0.03,ease:'power2.out'});
+    });
+  }
+  geos.push(padGeo); mats.push(padMat);
+
+  // ── Underfill fillet — matches chip base edge exactly ───
+  const fGeo=new THREE.BoxGeometry(CW+0.01, 0.045, 0.04);
+  const fMat=new THREE.MeshStandardMaterial({color:0x1a0800,transparent:true,opacity:0});
+  [CD/2+0.02,-CD/2-0.02].forEach(z=>{
+    const f=new THREE.Mesh(fGeo,fMat);
+    f.position.set(0,stackTop+0.022,z); group.add(f);
+  });
+  const fGeo2=new THREE.BoxGeometry(0.04,0.045,CD+0.01);
+  [CW/2+0.02,-CW/2-0.02].forEach(x=>{
+    const f=new THREE.Mesh(fGeo2,fMat);
+    f.position.set(x,stackTop+0.022,0); group.add(f);
+  });
+  geos.push(fGeo,fGeo2); mats.push(fMat);
+  gsap.to(fMat,{opacity:0.9,duration:0.3,delay:1.6});
+
+  chipGroup.add(group);
+  return {group,geos,mats};
+}
+
+// ════════════════════════════════════════════════════════════
+// STATE DATA
+// ════════════════════════════════════════════════════════════
+const STATES=[
+  {
+    hudName:'Silicon Substrate',hudSub:'Ultra-pure monocrystalline silicon wafer · 300mm',
+    badge:null,title:'The Silicon Canvas',
+    desc:'A 300mm diameter monocrystalline silicon wafer, grown via the Czochralski process at >1,400°C. Polished to sub-nanometer flatness. Every modern processor, GPU, and modem begins here.',
+    kpis:[{val:'300mm',key:'Wafer Diameter'},{val:'<0.3nm',key:'Surface Ra'},{val:'99.9999%',key:'Si Purity'},{val:'~$200',key:'Wafer Cost'}],
+    players:[],insight:null,risks:[],
+  },
+  {
+    hudName:'Design & IP Layer',hudSub:'RTL synthesis · Physical verification · DRC/LVS',
+    badge:{label:'EDA & Core IP',color:'#00d4ff',bg:'rgba(0,212,255,0.1)'},
+    title:'Design & Intellectual Property',
+    desc:'Engineers spend 3–5 years designing a modern SoC in EDA software. RTL code defines logic; synthesis maps it to standard cells; place & route optimises power, performance, and area. A modern SoC contains up to 100 billion transistors.',
+    kpis:[{val:'3–5 yrs',key:'Design Cycle'},{val:'~$500M',key:'Design Cost (7nm)'},{val:'100B+',key:'Transistors (SoC)'},{val:'2nm',key:'Leading Node (2025)'}],
+    players:[
+      {flag:'🇺🇸',country:'United States',companies:'Apple, Nvidia, Qualcomm, AMD, Intel, Synopsys, Cadence',share:'~68% global fabless revenue'},
+      {flag:'🇬🇧',country:'United Kingdom',companies:'Arm Holdings — ISA licensor to virtually all mobile SoCs',share:'~95% smartphone CPU cores'},
+    ],
+    insight:{head:'Strategic Chokepoint',body:'Synopsys and Cadence control ~90% of EDA tool revenue globally. Without their software, no advanced chip can be designed — making US export controls on EDA a potent geopolitical lever.'},
+    risks:[{country:'US EDA export',pct:85,color:'#f59e0b'},{country:'Arm ISA lock-in',pct:70,color:'#ef4444'}],
+    brands:[
+      {name:'Qualcomm',color:'#ef4444',bg:'rgba(239,68,68,.1)'},
+      {name:'Apple',color:'#e2e8f0',bg:'rgba(255,255,255,.06)'},
+      {name:'Nvidia',color:'#76b900',bg:'rgba(118,185,0,.1)'},
+      {name:'AMD',color:'#ed6a0e',bg:'rgba(237,106,14,.1)'},
+      {name:'Synopsys',color:'#00d4ff',bg:'rgba(0,212,255,.08)'},
+      {name:'Arm',color:'#0070f3',bg:'rgba(0,112,243,.1)'},
+    ],
+  },
+  {
+    hudName:'Equipment & Photolithography',hudSub:'EUV · CVD · ALD · CMP · Etch systems',
+    badge:{label:'Equipment & Chemicals',color:'#a78bfa',bg:'rgba(124,58,237,0.12)'},
+    title:'Specialized Equipment & Materials',
+    desc:'EUV lithography uses 13.5nm wavelength light — generated by firing 50,000 tin droplets/second with a CO₂ laser — to pattern features smaller than a virus. Each EUV machine weighs 180 tonnes, contains 100,000+ precision parts, and costs $350M+.',
+    kpis:[{val:'$350M+',key:'EUV Machine'},{val:'13.5nm',key:'EUV Wavelength'},{val:'180t',key:'Machine Weight'},{val:'~3 yrs',key:'Lead Time'}],
+    players:[
+      {flag:'🇳🇱',country:'Netherlands',companies:'ASML — sole global supplier of EUV lithography systems',share:'100% EUV market share'},
+      {flag:'🇯🇵',country:'Japan',companies:'Tokyo Electron (etch/CVD), Shin-Etsu (wafers/resist), JSR, Sumco',share:'~50% global equipment market'},
+      {flag:'🇺🇸',country:'United States',companies:'Applied Materials, Lam Research, KLA Corp',share:'~40% global equipment market'},
+    ],
+    insight:{head:'Single Point of Failure',body:"ASML's EUV monopoly is protected by a 600+ supplier ecosystem across 40 countries. The optical systems alone use mirrors polished to within 0.3 atom-widths of flatness — manufactured only by Zeiss (Germany)."},
+    risks:[{country:'ASML monopoly',pct:95,color:'#ef4444'},{country:'Japan materials',pct:75,color:'#f59e0b'},{country:'US equip controls',pct:80,color:'#f59e0b'}],
+  },
+  {
+    hudName:'Front-End Fabrication (FAB)',hudSub:'FinFET · GAAFET · 700+ process steps · 3–6 month cycle',
+    badge:{label:'Front-End Fabrication',color:'#fbbf24',bg:'rgba(251,191,36,0.1)'},
+    title:'Fabrication — The Foundry',
+    desc:'Wafer fabrication involves 700–1,400 individual process steps over 3–6 months in a Class 1 cleanroom. TSMC\'s Fab 18 in Tainan runs 24/7, cost $20B+, and produces leading-edge chips used in virtually every premium device globally.',
+    kpis:[{val:'700–1400',key:'Process Steps'},{val:'3–6 mo',key:'Cycle Time'},{val:'$20B+',key:'Fab Construction'},{val:'>92%',key:'TSMC Adv. Share'}],
+    players:[
+      {flag:'🇹🇼',country:'Taiwan',companies:'TSMC — 2nm/3nm/5nm/7nm. ~60% global foundry revenue',share:'~92% advanced node (<7nm)'},
+      {flag:'🇰🇷',country:'South Korea',companies:'Samsung Foundry (3nm GAA), SK Hynix (HBM, NAND)',share:'~15% foundry revenue'},
+      {flag:'🇺🇸',country:'United States',companies:'Intel Foundry Services (18A), GlobalFoundries (mature)',share:'~8% foundry revenue'},
+    ],
+    insight:{head:'Taiwan Strait Risk',body:'Taiwan produces >90% of the world\'s most advanced chips. A conflict or blockade would eliminate the global supply of leading-edge semiconductors within months — a $600B+ annual impact per CSIS estimates.'},
+    risks:[{country:'Taiwan geopolitical',pct:92,color:'#ef4444'},{country:'Samsung capacity',pct:55,color:'#f59e0b'},{country:'US fab gap',pct:45,color:'#10b981'}],
+  },
+  {
+    hudName:'Assembly, Test & Packaging (ATP)',hudSub:'Wafer dicing · Flip-chip · BGA · CoWoS · Final test',
+    badge:{label:'Back-End ATP / OSAT',color:'#10b981',bg:'rgba(16,185,129,0.1)'},
+    title:'Assembly, Testing & Packaging',
+    desc:'After fabrication, wafers are thinned to ~50µm, diced into dies, and packaged. Advanced packaging (CoWoS, SoIC, HBM stacking) now drives major performance gains — Nvidia\'s H100 uses CoWoS to stack 80GB HBM3 at 3.35 TB/s bandwidth. The chip brand is laser-etched on the mold compound.',
+    kpis:[{val:'50–100µm',key:'Thinned Wafer'},{val:'3.35 TB/s',key:'H100 HBM3 BW'},{val:'>600',key:'OSAT Facilities'},{val:'~$40B',key:'OSAT Market'}],
+    players:[
+      {flag:'🇨🇳',country:'China',companies:'JCET, Tongfu Microelectronics, Tianshui Huatian',share:'~37% OSAT revenue'},
+      {flag:'🇲🇾',country:'Malaysia',companies:'Intel Penang, Infineon Kulim, NXP, ASE Malaysia',share:'~13% global backend'},
+      {flag:'🇹🇼',country:'Taiwan',companies:'ASE Technology, Powertech, ChipMOS',share:'~27% OSAT revenue'},
+      {flag:'🇰🇷',country:'South Korea',companies:'Amkor Korea, Samsung (advanced packaging)',share:'~10% OSAT revenue'},
+    ],
+    insight:{head:'Hidden AI Bottleneck',body:'Advanced packaging (CoWoS, SoIC) is now the binding constraint on AI chip supply. TSMC\'s CoWoS capacity directly caps Nvidia H100/H200/B100 shipments. Every leading AI datacenter chip is bottlenecked here — not at the fab.'},
+    risks:[{country:'China OSAT',pct:70,color:'#f59e0b'},{country:'CoWoS cap (TSMC)',pct:88,color:'#ef4444'},{country:'Malaysia infra',pct:40,color:'#10b981'}],
+    brands:[
+      {name:'Qualcomm',color:'#ef4444',bg:'rgba(239,68,68,.1)'},
+      {name:'Apple',color:'#e2e8f0',bg:'rgba(255,255,255,.06)'},
+      {name:'Nvidia',color:'#76b900',bg:'rgba(118,185,0,.1)'},
+      {name:'MediaTek',color:'#0070f3',bg:'rgba(0,112,243,.1)'},
+      {name:'AMD',color:'#ed6a0e',bg:'rgba(237,106,14,.1)'},
+    ],
+    complete:true,
+  },
+];
+
+// ════════════════════════════════════════════════════════════
+// PANEL HTML BUILDER
+// ════════════════════════════════════════════════════════════
+function buildPanelHTML(s){
+  if(!s.badge) return `
+    <div class="p-title">${s.title}</div>
+    <div class="p-desc">${s.desc}</div>
+    <div class="kpi-row">${s.kpis.map(k=>`<div class="kpi-card"><div class="kpi-val">${k.val}</div><div class="kpi-key">${k.key}</div></div>`).join('')}</div>
+    <div class="insight" style="border-color:#334466;background:rgba(0,0,0,.2)">
+      <div class="insight-head" style="color:#4a90d9">Awaiting Sequence</div>
+      <div class="insight-body">Press <strong style="color:#00d4ff">Forward →</strong> to begin the chip fabrication sequence. Each step reveals a critical node in the global semiconductor supply chain.</div>
+    </div>`;
+
+  let h=`<div class="p-badge" style="background:${s.badge.bg};color:${s.badge.color}"><div class="p-badge-dot" style="background:${s.badge.color}"></div>${s.badge.label}</div>`;
+  h+=`<div class="p-title">${s.title}</div>`;
+  h+=`<div class="p-desc">${s.desc}</div>`;
+
+  if(s.kpis?.length){
+    h+=`<div class="kpi-row">${s.kpis.map(k=>`<div class="kpi-card"><div class="kpi-val">${k.val}</div><div class="kpi-key">${k.key}</div></div>`).join('')}</div>`;
+  }
+
+  if(s.brands?.length){
+    h+=`<div class="section-label" style="margin-bottom:10px">Key Companies This Stage</div>
+    <div class="chip-brands">${s.brands.map(b=>`<div class="chip-brand-tag" style="color:${b.color};background:${b.bg};border-color:${b.color}33">${b.name}</div>`).join('')}</div>`;
+  }
+
+  if(s.players?.length){
+    h+=`<div class="section-label">Dominant Countries</div>`;
+    s.players.forEach(p=>{ h+=`
+      <div class="player-card">
+        <div class="p-flag">${p.flag}</div>
+        <div><div class="p-country">${p.country}</div>
+        <div class="p-companies">${p.companies}</div>
+        ${p.share?`<div class="p-share">${p.share}</div>`:''}</div>
+      </div>`; });
+  }
+
+  if(s.insight) h+=`<div class="insight"><div class="insight-head">${s.insight.head}</div><div class="insight-body">${s.insight.body}</div></div>`;
+
+  if(s.risks?.length){
+    h+=`<div class="risk-wrap"><div class="risk-label">Concentration Risk Index</div>`;
+    s.risks.forEach(r=>{ h+=`
+      <div class="risk-bar-row">
+        <div class="risk-country">${r.country}</div>
+        <div class="risk-track"><div class="risk-fill" style="width:${r.pct}%;background:${r.color}"></div></div>
+        <div class="risk-pct">${r.pct}%</div>
+      </div>`; });
+    h+=`</div>`;
+  }
+
+  if(s.complete) h+=`
+    <div class="complete-badge">
+      <div class="complete-icon">✦</div>
+      <div class="complete-title">Full Supply Chain Traversed</div>
+      <div class="complete-sub">From raw silicon to branded IC package — you've seen every critical node in the global semiconductor value chain.</div>
+    </div>`;
+
+  return h;
+}
+
+// ════════════════════════════════════════════════════════════
+// UI UPDATE HELPERS
+// ════════════════════════════════════════════════════════════
+const dotsEl=document.getElementById('progress-dots');
+for(let i=0;i<5;i++){
+  const d=document.createElement('div'); d.className='dot'+(i===0?' active':''); dotsEl.appendChild(d);
+}
+function updateDots(n){
+  dotsEl.querySelectorAll('.dot').forEach((d,i)=>{
+    d.className='dot'+(i<n?' done':'')+(i===n?' active':'');
+  });
+}
+function updateHUD(n){
+  const s=STATES[n];
+  const el1=document.getElementById('hud-step'),el2=document.getElementById('hud-name'),el3=document.getElementById('hud-sub');
+  gsap.to([el1,el2,el3],{opacity:0,y:-5,duration:0.18,onComplete:()=>{
+    el1.textContent=`STAGE ${n} / 4`;
+    el2.textContent=s.hudName;
+    el3.textContent=s.hudSub;
+    gsap.to([el1,el2,el3],{opacity:1,y:0,duration:0.32,stagger:0.055});
+  }});
+}
+function updatePanel(n){
+  const s=STATES[n];
+  const pct=Math.round((n/4)*100);
+  document.getElementById('pbar-pct').textContent=pct+'%';
+  document.getElementById('pbar-fill').style.width=pct+'%';
+  document.getElementById('step-ind').textContent=`${n} / 4`;
+  document.getElementById('btn-back').disabled=n===0;
+  document.getElementById('btn-fwd').disabled=n===4;
+  updateDots(n); updateHUD(n);
+
+  const content=document.getElementById('panel-content');
+  gsap.to(content,{opacity:0,y:10,duration:0.17,onComplete:()=>{
+    content.innerHTML=buildPanelHTML(s);
+    gsap.fromTo(content,{opacity:0,y:14},{opacity:1,y:0,duration:0.36,ease:'power2.out'});
+    content.querySelectorAll('.risk-fill').forEach((el,i)=>{
+      const w=el.style.width; el.style.width='0';
+      gsap.to(el,{width:w,duration:0.65,delay:0.28+i*0.09,ease:'power2.out'});
+    });
+  }});
+}
+
+// ════════════════════════════════════════════════════════════
+// STATE MACHINE
+// ════════════════════════════════════════════════════════════
+let step=0, busy=false;
+const BUILDERS=[null,buildBlueprint,buildEquipment,buildFabrication,buildPackaging];
+let rotPaused=false;
+function pauseRot(ms){rotPaused=true;setTimeout(()=>rotPaused=false,ms);}
+
+function goForward(){
+  if(busy||step>=4) return;
+  busy=true; step++;
+  pauseRot(1500);
+  layerStack.push(BUILDERS[step]());
+  updatePanel(step);
+  setTimeout(()=>busy=false,1500);
+}
+function goBack(){
+  if(busy||step<=0) return;
+  busy=true;
+  const e=layerStack.pop();
+  if(e){gsap.to(e.group.position,{y:9,duration:0.52,ease:'power2.in',onComplete:()=>disposeEntry(e)});}
+  step--; updatePanel(step); pauseRot(700);
+  setTimeout(()=>busy=false,700);
+}
+
+document.getElementById('btn-fwd').addEventListener('click',goForward);
+document.getElementById('btn-back').addEventListener('click',goBack);
+window.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowUp')  goForward();
+  if(e.key==='ArrowLeft' ||e.key==='ArrowDown') goBack();
+});
+document.getElementById('mob-handle').addEventListener('click',()=>
+  document.getElementById('panel').classList.toggle('open'));
+
+// ════════════════════════════════════════════════════════════
+// BACKGROUND PARTICLES
+// ════════════════════════════════════════════════════════════
+(()=>{
+  const N=280, pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){pos[i*3]=(Math.random()-.5)*20;pos[i*3+1]=(Math.random()-.5)*14;pos[i*3+2]=(Math.random()-.5)*20;}
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  scene.add(new THREE.Points(geo,new THREE.PointsMaterial({color:0x1a3a5a,size:0.05,transparent:true,opacity:0.5,sizeAttenuation:true})));
+})();
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ═════════════════════��══════════════════════════════════════
+buildSubstrate();
+updatePanel(0);
+
+// ════════════════════════════════════════════════════════════
+// RENDER LOOP
+// ════════════════════════════════════════════════════════════
+let t=0;
+(function animate(){
+  requestAnimationFrame(animate);
+  t+=0.01;
+  if(!rotPaused) chipGroup.rotation.y+=0.0022;
+  camera.position.y=9+Math.sin(t*.28)*.1;
+  camera.lookAt(0,0.8,0);
+  fill.intensity=0.35+Math.sin(t*1.1)*.07;
+  renderer.render(scene,camera);
+})();
+</script>
+</body>
+</html>
