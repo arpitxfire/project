@@ -258,6 +258,8 @@ button {
 }
 
 /* ── Scroll Progress Bar ────────────────────────────────────── */
+/* Scroll progress bar — HTML should include role="progressbar" aria-label="Page scroll progress"
+   and aria-valuenow/aria-valuemin/aria-valuemax updated via JavaScript */
 #scroll-progress {
   position: fixed;
   top: 0;
@@ -666,6 +668,12 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.scroll-hint:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .scroll-hint {
@@ -1246,6 +1254,12 @@ button {
   margin-bottom: 2.5rem;
 }
 
+.option-card:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 3px;
+  border-color: rgba(0, 212, 255, 0.40);
+}
+
 .option-card {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
@@ -1779,6 +1793,11 @@ button {
 .scenario-tab:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.scenario-tab:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 3px;
 }
 
 .scenario-tab.active {
